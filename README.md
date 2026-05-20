@@ -153,7 +153,8 @@ Possible future enhancements include:
 
 ## Author
 
-Captain Joe
+JJ Adekunle
+josephjkunle@gmail.com
 
 ---
 
