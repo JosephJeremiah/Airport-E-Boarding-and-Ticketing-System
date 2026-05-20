@@ -1,0 +1,92 @@
+-- DATABASE CREATION AND TABLE DESIGN (3NF)
+CREATE DATABASE AirportEBoarding;
+GO
+USE AirportEBoarding;
+GO
+
+-- Employees Table
+CREATE TABLE Employees (
+    EmployeeID INT PRIMARY KEY IDENTITY(1,1),
+    Username VARCHAR(50) UNIQUE NOT NULL,
+    PasswordHash VARBINARY(256) NOT NULL, -- Hashed password
+    Role VARCHAR(20) CHECK (Role IN ('Ticketing Staff', 'Ticketing Supervisor')),
+    Email VARCHAR(100) UNIQUE NOT NULL,
+    Name VARCHAR(100) NOT NULL
+);
+
+-- Passengers Table
+CREATE TABLE Passengers (
+    PassengerID INT PRIMARY KEY IDENTITY(1,1),
+    PNR VARCHAR(10) UNIQUE NOT NULL,
+    FirstName VARCHAR(50) NOT NULL,
+    LastName VARCHAR(50) NOT NULL,
+    Email VARCHAR(100) NOT NULL,
+    DOB DATE NOT NULL,
+    MealPreference VARCHAR(15) CHECK (MealPreference IN ('Vegetarian', 'Non-Vegetarian')),
+    EmergencyContact VARCHAR(15) NULL
+);
+
+-- Flights Table
+CREATE TABLE Flights (
+    FlightID INT PRIMARY KEY IDENTITY(1,1),
+    FlightNumber VARCHAR(10) UNIQUE NOT NULL,
+    DepartureTime DATETIME NOT NULL,
+    ArrivalTime DATETIME NOT NULL,
+    Origin VARCHAR(50) NOT NULL,
+    Destination VARCHAR(50) NOT NULL
+);
+
+-- Reservations Table
+CREATE TABLE Reservations (
+    ReservationID INT PRIMARY KEY IDENTITY(1,1),
+    PassengerID INT FOREIGN KEY REFERENCES Passengers(PassengerID) ON DELETE CASCADE,
+    FlightID INT FOREIGN KEY REFERENCES Flights(FlightID) ON DELETE CASCADE,
+    Status VARCHAR(10) CHECK (Status IN ('Confirmed', 'Pending', 'Cancelled')),
+    ReservationDate DATE NOT NULL,
+    CONSTRAINT chk_reservation_date CHECK (ReservationDate >= GETDATE())
+);
+
+-- Tickets Table
+CREATE TABLE Tickets (
+    TicketID INT PRIMARY KEY IDENTITY(1,1),
+    ReservationID INT FOREIGN KEY REFERENCES Reservations(ReservationID) ON DELETE CASCADE,
+    IssueDate DATE NOT NULL,
+    IssueTime TIME NOT NULL,
+    Fare DECIMAL(10,2) NOT NULL,
+    SeatNumber VARCHAR(5) NULL,
+    Class VARCHAR(15) CHECK (Class IN ('Business', 'FirstClass', 'Economy')),
+    EmployeeID INT FOREIGN KEY REFERENCES Employees(EmployeeID) ON DELETE SET NULL
+);
+
+-- Baggage Table
+CREATE TABLE Baggage (
+    BaggageID INT PRIMARY KEY IDENTITY(1,1),
+    TicketID INT FOREIGN KEY REFERENCES Tickets(TicketID) ON DELETE CASCADE,
+    Weight DECIMAL(5,2) NOT NULL,
+    Status VARCHAR(10) CHECK (Status IN ('CheckedIn', 'Loaded')),
+    BaggageFee DECIMAL(10,2) NOT NULL
+);
+
+-- INDEX FOR OPTIMIZATION
+CREATE INDEX idx_PNR ON Passengers(PNR);
+CREATE INDEX idx_FlightNumber ON Flights(FlightNumber);
+CREATE INDEX idx_ReservationStatus ON Reservations(Status);
+
+-- SAMPLE DATA INSERTION (At least 7 per table)
+INSERT INTO Employees (Username, PasswordHash, Role, Email, Name) VALUES
+('staff1', HASHBYTES('SHA2_256', 'password123'), 'Ticketing Staff', 'staff1@airport.com', 'John Doe'),
+('supervisor1', HASHBYTES('SHA2_256', 'securePass!'), 'Ticketing Supervisor', 'supervisor1@airport.com', 'Jane Smith');
+
+-- More INSERT statements for Passengers, Flights, Reservations, Tickets, and Baggage will follow...
+
+-- STORED PROCEDURE TO SEARCH PASSENGER BY LAST NAME
+CREATE PROCEDURE SearchPassengerByLastName @LastName VARCHAR(50)
+AS
+BEGIN
+    SELECT P.*, T.IssueDate FROM Passengers P
+    JOIN Reservations R ON P.PassengerID = R.PassengerID
+    JOIN Tickets T ON R.ReservationID = T.ReservationID
+    WHERE P.LastName = @LastName
+    ORDER BY T.IssueDate DESC;
+END;
+GO

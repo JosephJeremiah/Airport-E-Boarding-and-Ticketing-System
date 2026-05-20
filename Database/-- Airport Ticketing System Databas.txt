@@ -1,0 +1,109 @@
+-- Airport Ticketing System Database in 3NF
+-- Designed for Microsoft SQL Server
+
+-- Step 1: Create Database
+CREATE DATABASE AirportTicketingDB;
+GO
+USE AirportTicketingDB;
+GO
+
+-- Step 2: Create Tables
+
+-- Employee Table
+CREATE TABLE Employee (
+    EmployeeID INT IDENTITY(1,1) PRIMARY KEY,
+    Username VARCHAR(50) UNIQUE NOT NULL,
+    PasswordHash VARCHAR(255) NOT NULL,
+    Role VARCHAR(20) CHECK (Role IN ('Ticketing Staff', 'Ticketing Supervisor')) NOT NULL,
+    Email VARCHAR(100) UNIQUE NOT NULL,
+    FullName VARCHAR(100) NOT NULL
+);
+
+-- Passenger Table
+CREATE TABLE Passenger (
+    PassengerID INT IDENTITY(1,1) PRIMARY KEY,
+    PNR VARCHAR(10) UNIQUE NOT NULL,
+    Email VARCHAR(100) UNIQUE NOT NULL,
+    FirstName VARCHAR(50) NOT NULL,
+    LastName VARCHAR(50) NOT NULL,
+    DOB DATE NOT NULL,
+    MealPreference VARCHAR(20) CHECK (MealPreference IN ('Vegetarian', 'Non-Vegetarian')),
+    EmergencyContact VARCHAR(15) NULL
+);
+
+-- Flight Table
+CREATE TABLE Flight (
+    FlightID INT IDENTITY(1,1) PRIMARY KEY,
+    FlightNumber VARCHAR(10) UNIQUE NOT NULL,
+    DepartureTime DATETIME NOT NULL,
+    ArrivalTime DATETIME NOT NULL,
+    Origin VARCHAR(50) NOT NULL,
+    Destination VARCHAR(50) NOT NULL
+);
+
+-- Reservation Table
+CREATE TABLE Reservation (
+    ReservationID INT IDENTITY(1,1) PRIMARY KEY,
+    PNR VARCHAR(10) NOT NULL FOREIGN KEY REFERENCES Passenger(PNR),
+    FlightID INT NOT NULL FOREIGN KEY REFERENCES Flight(FlightID),
+    ReservationDate DATE NOT NULL CHECK (ReservationDate >= GETDATE()),
+    Status VARCHAR(20) CHECK (Status IN ('Confirmed', 'Pending', 'Cancelled')) NOT NULL
+);
+
+-- Ticket Table
+CREATE TABLE Ticket (
+    TicketID INT IDENTITY(1,1) PRIMARY KEY,
+    ReservationID INT NOT NULL FOREIGN KEY REFERENCES Reservation(ReservationID),
+    IssueDate DATE NOT NULL DEFAULT GETDATE(),
+    IssueTime TIME NOT NULL DEFAULT GETDATE(),
+    Fare DECIMAL(10,2) NOT NULL,
+    SeatNumber VARCHAR(5) NULL,
+    Class VARCHAR(20) CHECK (Class IN ('Business', 'FirstClass', 'Economy')) NOT NULL,
+    EmployeeID INT NOT NULL FOREIGN KEY REFERENCES Employee(EmployeeID),
+    EBoardingNumber VARCHAR(15) UNIQUE NOT NULL
+);
+
+-- Baggage Table
+CREATE TABLE Baggage (
+    BaggageID INT IDENTITY(1,1) PRIMARY KEY,
+    TicketID INT NOT NULL FOREIGN KEY REFERENCES Ticket(TicketID),
+    Weight DECIMAL(5,2) CHECK (Weight >= 0),
+    Status VARCHAR(20) CHECK (Status IN ('CheckedIn', 'Loaded')) NOT NULL,
+    BaggageFee DECIMAL(10,2) AS (Weight * 100) PERSISTED
+);
+
+-- Additional Services Table
+CREATE TABLE AdditionalServices (
+    ServiceID INT IDENTITY(1,1) PRIMARY KEY,
+    TicketID INT NOT NULL FOREIGN KEY REFERENCES Ticket(TicketID),
+    ExtraBaggage DECIMAL(5,2) CHECK (ExtraBaggage >= 0),
+    UpgradedMeal BIT NOT NULL DEFAULT 0,
+    PreferredSeat BIT NOT NULL DEFAULT 0,
+    AdditionalFee AS (ExtraBaggage * 100 + (CASE WHEN UpgradedMeal = 1 THEN 20 ELSE 0 END) + (CASE WHEN PreferredSeat = 1 THEN 30 ELSE 0 END)) PERSISTED
+);
+
+-- Step 3: Insert Sample Data (at least 7 records per table)
+-- Sample Employees
+INSERT INTO Employee (Username, PasswordHash, Role, Email, FullName)
+VALUES 
+('jdoe', 'hashed_password', 'Ticketing Staff', 'jdoe@example.com', 'John Doe'),
+('asmith', 'hashed_password', 'Ticketing Supervisor', 'asmith@example.com', 'Alice Smith');
+
+-- Sample Passengers
+INSERT INTO Passenger (PNR, Email, FirstName, LastName, DOB, MealPreference, EmergencyContact)
+VALUES 
+('PNR001', 'mjackson@example.com', 'Michael', 'Jackson', '1980-05-12', 'Vegetarian', '1234567890'),
+('PNR002', 'sconnor@example.com', 'Sarah', 'Connor', '1985-10-23', 'Non-Vegetarian', NULL);
+
+-- Sample Flights
+INSERT INTO Flight (FlightNumber, DepartureTime, ArrivalTime, Origin, Destination)
+VALUES 
+('FL1001', '2025-03-15 08:00', '2025-03-15 11:00', 'London', 'New York'),
+('FL1002', '2025-03-16 09:00', '2025-03-16 12:00', 'Paris', 'Tokyo');
+
+-- More sample data will be added...
+
+-- Step 4: Create Constraints
+ALTER TABLE Reservation ADD CONSTRAINT CHK_ReservationDate CHECK (ReservationDate >= GETDATE());
+
+-- Step 5: Stored Procedures and Functions will be added next...
